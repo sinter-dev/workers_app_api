@@ -13,13 +13,50 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Auth', description: 'Registration, login, and session management')]
 class AuthController extends Controller
 {
     /**
      * Register a new user.
      */
+    #[OA\Post(
+        path: '/api/register',
+        tags: ['Auth'],
+        summary: 'Register a new worker or homeowner account',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['full_name', 'phone', 'password', 'role'],
+                properties: [
+                    new OA\Property(property: 'full_name', type: 'string', example: 'Jane Doe'),
+                    new OA\Property(property: 'phone', type: 'string', example: '+256700000000'),
+                    new OA\Property(property: 'email', type: 'string', example: 'jane@example.com', nullable: true),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'Str0ngPass!'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['worker', 'homeowner']),
+                    new OA\Property(property: 'location', type: 'string', example: 'Kampala', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Registration successful',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'token', type: 'string'),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Registration failed'),
+        ]
+    )]
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
@@ -73,6 +110,39 @@ class AuthController extends Controller
     /**
      * Log in a user.
      */
+    #[OA\Post(
+        path: '/api/login',
+        tags: ['Auth'],
+        summary: 'Log in with phone and password',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['phone', 'password'],
+                properties: [
+                    new OA\Property(property: 'phone', type: 'string', example: '+256700000000'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Login successful',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'token', type: 'string'),
+                        new OA\Property(property: 'user', type: 'object'),
+                        new OA\Property(property: 'reactivated', type: 'boolean'),
+                        new OA\Property(property: 'restored_deletion', type: 'boolean'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Invalid phone number or password'),
+            new OA\Response(response: 403, description: 'Account deactivated or deleted'),
+        ]
+    )]
     public function login(LoginRequest $request): JsonResponse
     {
         $user = User::query()
@@ -185,6 +255,25 @@ class AuthController extends Controller
     /**
      * Return the authenticated user.
      */
+    #[OA\Get(
+        path: '/api/me',
+        tags: ['Auth'],
+        summary: 'Get the currently authenticated user',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Authenticated user',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
