@@ -38,13 +38,21 @@ RUN composer dump-autoload --no-dev --optimize
 # ---------------------------------------------------------------------------
 # Stage 3: final runtime image (php-fpm + nginx + supervisord)
 # ---------------------------------------------------------------------------
-FROM php:8.3-fpm-alpine AS runtime
+FROM php:8.4-fpm-alpine AS runtime
 
 RUN apk add --no-cache \
         nginx \
         supervisor \
         bash \
         curl \
+        libpng \
+        libjpeg-turbo \
+        freetype \
+        icu-libs \
+        libzip \
+        oniguruma \
+    && apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
         libzip-dev \
         libpng-dev \
         libjpeg-turbo-dev \
@@ -60,7 +68,7 @@ RUN apk add --no-cache \
         intl \
         bcmath \
         opcache \
-    && apk del --no-cache libpng-dev libjpeg-turbo-dev freetype-dev icu-dev oniguruma-dev libzip-dev
+    && apk del --no-cache .build-deps
 
 WORKDIR /var/www/html
 
