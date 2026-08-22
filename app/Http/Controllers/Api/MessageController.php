@@ -11,13 +11,39 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Messages', description: 'Sending, reading, editing, and deleting messages within a conversation')]
 class MessageController extends Controller
 {
     /**
      * List messages in one conversation.
      */
+    #[OA\Get(
+        path: '/api/conversations/{conversation}/messages',
+        tags: ['Messages'],
+        summary: 'List messages in a conversation (paginated)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', default: 30)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Messages',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'messages', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+        ]
+    )]
     public function index(
         Request $request,
         Conversation $conversation
@@ -102,6 +128,33 @@ class MessageController extends Controller
     /**
      * Send a new message.
      */
+    #[OA\Post(
+        path: '/api/conversations/{conversation}/messages',
+        tags: ['Messages'],
+        summary: 'Send a message (text and/or attachment, multipart/form-data)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'message_type', type: 'string', enum: ['text', 'image', 'file'], nullable: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, maxLength: 5000, description: 'Required if no attachment'),
+                        new OA\Property(property: 'attachment', type: 'string', format: 'binary', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Message sent'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function store(
         Request $request,
         Conversation $conversation
@@ -253,6 +306,20 @@ class MessageController extends Controller
     /**
      * Mark all received messages in a conversation as read.
      */
+    #[OA\Patch(
+        path: '/api/conversations/{conversation}/read',
+        tags: ['Messages'],
+        summary: 'Mark all messages in a conversation as read',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked as read'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+        ]
+    )]
     public function markRead(
         Request $request,
         Conversation $conversation
@@ -300,6 +367,30 @@ class MessageController extends Controller
     /**
      * Edit a text message.
      */
+    #[OA\Put(
+        path: '/api/messages/{message}',
+        tags: ['Messages'],
+        summary: 'Edit a text message the user sent',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'message', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['message'],
+                properties: [
+                    new OA\Property(property: 'message', type: 'string', maxLength: 5000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Message updated'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the sender of this message'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function update(
         Request $request,
         Message $message
@@ -404,6 +495,20 @@ class MessageController extends Controller
     /**
      * Delete a message for the logged-in user.
      */
+    #[OA\Delete(
+        path: '/api/messages/{message}',
+        tags: ['Messages'],
+        summary: 'Delete a message',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'message', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Message deleted'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the sender of this message'),
+        ]
+    )]
     public function destroy(
         Request $request,
         Message $message

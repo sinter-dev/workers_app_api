@@ -7,9 +7,34 @@ use App\Models\DeviceToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Device Tokens', description: 'Push-notification (FCM) device token registration')]
 class DeviceTokenController extends Controller
 {
+    #[OA\Post(
+        path: '/api/device-tokens',
+        tags: ['Device Tokens'],
+        summary: 'Register a push notification device token',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['token'],
+                properties: [
+                    new OA\Property(property: 'token', type: 'string', maxLength: 4096),
+                    new OA\Property(property: 'platform', type: 'string', enum: ['android', 'ios', 'web'], nullable: true),
+                    new OA\Property(property: 'device_name', type: 'string', nullable: true),
+                    new OA\Property(property: 'device_id', type: 'string', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Token registered'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -59,6 +84,25 @@ class DeviceTokenController extends Controller
         ]);
     }
 
+    #[OA\Delete(
+        path: '/api/device-tokens',
+        tags: ['Device Tokens'],
+        summary: 'Remove a device token (by token or device_id)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'token', type: 'string', nullable: true, description: 'Required if device_id is omitted'),
+                    new OA\Property(property: 'device_id', type: 'string', nullable: true, description: 'Required if token is omitted'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Token(s) removed'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function destroy(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -85,6 +129,25 @@ class DeviceTokenController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/api/device-tokens',
+        tags: ['Device Tokens'],
+        summary: 'List the authenticated user\'s registered device tokens',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Device tokens',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'device_tokens', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         return response()->json([

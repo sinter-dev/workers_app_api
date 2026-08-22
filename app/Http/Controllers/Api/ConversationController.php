@@ -11,13 +11,34 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Conversations', description: 'Direct-message conversation threads between workers and homeowners')]
 class ConversationController extends Controller
 {
     /**
      * Return conversations belonging to the logged-in user.
      */
+    #[OA\Get(
+        path: '/api/conversations',
+        tags: ['Conversations'],
+        summary: 'List the authenticated user\'s conversations',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Conversations',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'conversations', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -86,6 +107,26 @@ class ConversationController extends Controller
      *     "job_id": 2
      * }
      */
+    #[OA\Post(
+        path: '/api/conversations',
+        tags: ['Conversations'],
+        summary: 'Start (or reuse) a conversation with a user or about a job',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'other_user_id', type: 'integer', nullable: true, description: 'Required if job_id is omitted'),
+                    new OA\Property(property: 'job_id', type: 'integer', nullable: true, description: 'Required if other_user_id is omitted'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Existing or newly created conversation'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -186,6 +227,20 @@ class ConversationController extends Controller
     /**
      * Show one conversation.
      */
+    #[OA\Get(
+        path: '/api/conversations/{conversation}',
+        tags: ['Conversations'],
+        summary: 'View a single conversation',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Conversation details'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+        ]
+    )]
     public function show(
         Request $request,
         Conversation $conversation
@@ -234,6 +289,20 @@ class ConversationController extends Controller
      * Archiving only hides the conversation for that user.
      * It does not delete messages for the other participant.
      */
+    #[OA\Patch(
+        path: '/api/conversations/{conversation}/archive',
+        tags: ['Conversations'],
+        summary: 'Archive a conversation (hides it for this user only)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Archived'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+        ]
+    )]
     public function archive(
         Request $request,
         Conversation $conversation
@@ -273,6 +342,20 @@ class ConversationController extends Controller
     /**
      * Restore a conversation archived by the logged-in participant.
      */
+    #[OA\Patch(
+        path: '/api/conversations/{conversation}/restore',
+        tags: ['Conversations'],
+        summary: 'Restore (un-archive) a conversation',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'conversation', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Restored'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a participant in this conversation'),
+        ]
+    )]
     public function restore(
         Request $request,
         Conversation $conversation
