@@ -8,7 +8,7 @@ FROM node:20-alpine AS frontend
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 
 COPY resources ./resources
 COPY vite.config.js ./
