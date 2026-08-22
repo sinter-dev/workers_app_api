@@ -9,13 +9,41 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Homeowner Profile Sections', description: 'Granular, section-by-section updates to an existing homeowner profile')]
 class HomeownerProfileSectionController extends Controller
 {
     /**
      * Update the homeowner's personal and contact information.
      */
+    #[OA\Post(
+        path: '/api/homeowner/profile/personal',
+        tags: ['Homeowner Profile Sections'],
+        summary: 'Update name, email, and profile photo (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['full_name', 'email'],
+                    properties: [
+                        new OA\Property(property: 'full_name', type: 'string'),
+                        new OA\Property(property: 'email', type: 'string', format: 'email'),
+                        new OA\Property(property: 'profile_photo', type: 'string', format: 'binary', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can access this'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function personal(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -144,6 +172,32 @@ class HomeownerProfileSectionController extends Controller
     /**
      * Update the homeowner's address and location information.
      */
+    #[OA\Put(
+        path: '/api/homeowner/profile/location',
+        tags: ['Homeowner Profile Sections'],
+        summary: 'Update address, district, and coordinates',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['address', 'district'],
+                properties: [
+                    new OA\Property(property: 'address', type: 'string'),
+                    new OA\Property(property: 'city', type: 'string', nullable: true),
+                    new OA\Property(property: 'district', type: 'string'),
+                    new OA\Property(property: 'country', type: 'string', nullable: true),
+                    new OA\Property(property: 'latitude', type: 'number', nullable: true),
+                    new OA\Property(property: 'longitude', type: 'number', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can access this'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function location(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -260,6 +314,38 @@ class HomeownerProfileSectionController extends Controller
     /**
      * Update the homeowner's communication preference.
      */
+    #[OA\Put(
+        path: '/api/homeowner/profile/preferences',
+        tags: ['Homeowner Profile Sections'],
+        summary: 'Update preferred contact method',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['preferred_contact'],
+                properties: [
+                    new OA\Property(property: 'preferred_contact', type: 'string', enum: ['phone', 'whatsapp', 'email']),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Updated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can access this'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function preferences(Request $request): JsonResponse
     {
         $user = $request->user();

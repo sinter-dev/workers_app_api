@@ -9,13 +9,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Homeowner Profile', description: 'Creating and viewing the authenticated homeowner\'s own profile')]
 class HomeownerProfileController extends Controller
 {
     /**
      * Return the authenticated homeowner's profile.
      */
+    #[OA\Get(
+        path: '/api/homeowner/profile',
+        tags: ['Homeowner Profile'],
+        summary: 'Get the authenticated homeowner\'s profile',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Homeowner profile',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'profile_completed', type: 'boolean'),
+                        new OA\Property(property: 'profile', type: 'object', nullable: true),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can access this profile'),
+        ]
+    )]
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -49,6 +73,52 @@ class HomeownerProfileController extends Controller
     /**
      * Create or update the authenticated homeowner's profile.
      */
+    #[OA\Post(
+        path: '/api/homeowner/profile',
+        tags: ['Homeowner Profile'],
+        summary: 'Create or update the homeowner profile (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['full_name', 'email', 'address', 'district', 'preferred_contact'],
+                    properties: [
+                        new OA\Property(property: 'full_name', type: 'string', example: 'John Homeowner'),
+                        new OA\Property(property: 'email', type: 'string', format: 'email'),
+                        new OA\Property(property: 'address', type: 'string'),
+                        new OA\Property(property: 'city', type: 'string', nullable: true),
+                        new OA\Property(property: 'district', type: 'string', example: 'Kampala'),
+                        new OA\Property(property: 'country', type: 'string', nullable: true, example: 'Uganda'),
+                        new OA\Property(property: 'preferred_contact', type: 'string', enum: ['phone', 'whatsapp', 'email']),
+                        new OA\Property(property: 'profile_photo', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'latitude', type: 'number', nullable: true),
+                        new OA\Property(property: 'longitude', type: 'number', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Profile saved',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile_completed', type: 'boolean'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can complete this profile'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Unable to save the homeowner profile'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
