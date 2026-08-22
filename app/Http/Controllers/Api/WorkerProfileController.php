@@ -12,13 +12,36 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Profile', description: 'Creating, viewing, and resubmitting the authenticated worker\'s own profile')]
 class WorkerProfileController extends Controller
 {
     /**
      * Return the authenticated worker's profile.
      */
+    #[OA\Get(
+        path: '/api/worker/profile',
+        tags: ['Worker Profile'],
+        summary: 'Get the authenticated worker\'s profile',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Worker profile and user data',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'profile', type: 'object', nullable: true),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this profile'),
+        ]
+    )]
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -52,6 +75,27 @@ class WorkerProfileController extends Controller
     /**
      * Resubmit a rejected worker profile for administrator verification.
      */
+    #[OA\Post(
+        path: '/api/worker/profile/resubmit-verification',
+        tags: ['Worker Profile'],
+        summary: 'Resubmit a rejected profile for verification',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Resubmitted',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only worker accounts can resubmit verification'),
+            new OA\Response(response: 422, description: 'Profile incomplete, missing ID documents, or not currently rejected'),
+        ]
+    )]
     public function resubmitVerification(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -114,6 +158,60 @@ class WorkerProfileController extends Controller
     /**
      * Create or update the authenticated worker's profile.
      */
+    #[OA\Post(
+        path: '/api/worker/profile',
+        tags: ['Worker Profile'],
+        summary: 'Create or update the worker profile (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['full_name', 'age', 'religion', 'gender', 'district', 'work_type'],
+                    properties: [
+                        new OA\Property(property: 'full_name', type: 'string', example: 'Jane Doe'),
+                        new OA\Property(property: 'age', type: 'integer', example: 28),
+                        new OA\Property(property: 'religion', type: 'string'),
+                        new OA\Property(property: 'gender', type: 'string', enum: ['male', 'female', 'other']),
+                        new OA\Property(property: 'district', type: 'string', example: 'Kampala'),
+                        new OA\Property(property: 'work_type', type: 'string', enum: ['full_time', 'part_time']),
+                        new OA\Property(property: 'languages', type: 'array', items: new OA\Items(type: 'string')),
+                        new OA\Property(property: 'availability', type: 'string', enum: ['available', 'busy', 'offline']),
+                        new OA\Property(property: 'bio', type: 'string', nullable: true),
+                        new OA\Property(property: 'experience_years', type: 'integer', nullable: true),
+                        new OA\Property(property: 'hourly_rate', type: 'number', nullable: true),
+                        new OA\Property(property: 'monthly_rate', type: 'number', nullable: true),
+                        new OA\Property(property: 'service_ids', type: 'array', items: new OA\Items(type: 'integer'), description: 'Required on first profile creation'),
+                        new OA\Property(property: 'profile_photo', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'national_id_front_document', type: 'string', format: 'binary', description: 'Required on first submission'),
+                        new OA\Property(property: 'national_id_back_document', type: 'string', format: 'binary', description: 'Required on first submission'),
+                        new OA\Property(property: 'gallery_image_1', type: 'string', format: 'binary', description: 'Required unless already saved previously'),
+                        new OA\Property(property: 'gallery_image_2', type: 'string', format: 'binary', description: 'Required unless already saved previously'),
+                        new OA\Property(property: 'gallery_image_3', type: 'string', format: 'binary', description: 'Required unless already saved previously'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Profile saved',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can complete a worker profile'),
+            new OA\Response(response: 422, description: 'Validation error (missing gallery images, inactive services, etc.)'),
+            new OA\Response(response: 500, description: 'Unable to save the worker profile'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();

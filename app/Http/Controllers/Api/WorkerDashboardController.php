@@ -10,12 +10,41 @@ use App\Models\Review;
 use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Worker Dashboard', description: 'Worker dashboard: statistics, earnings, applications, activity')]
 class WorkerDashboardController extends Controller
 {
     /**
      * Return all information required by the worker dashboard.
      */
+    #[OA\Get(
+        path: '/api/worker/dashboard',
+        tags: ['Worker Dashboard'],
+        summary: 'Get worker dashboard data',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Dashboard statistics, earnings, and activity',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'profile_completed', type: 'boolean'),
+                        new OA\Property(property: 'worker', type: 'object'),
+                        new OA\Property(property: 'statistics', type: 'object'),
+                        new OA\Property(property: 'earnings', type: 'object'),
+                        new OA\Property(property: 'incoming_requests', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'pending_applications', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'active_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'recent_activity', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this dashboard'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();

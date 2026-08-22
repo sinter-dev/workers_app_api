@@ -8,12 +8,40 @@ use App\Models\User;
 use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Worker Public Profile', description: 'Full worker profile view for authenticated viewers')]
 class WorkerPublicProfileController extends Controller
 {
     /**
      * Return one worker's public profile.
      */
+    #[OA\Get(
+        path: '/api/workers/{worker}/profile',
+        tags: ['Worker Public Profile'],
+        summary: 'Get a worker\'s full public profile',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'worker', in: 'path', required: true, description: 'Worker user ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Worker profile, reviews, and viewer context',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'worker', type: 'object'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                        new OA\Property(property: 'reviews', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'viewer', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 404, description: 'Worker profile not available'),
+        ]
+    )]
     public function show(
         Request $request,
         User $worker

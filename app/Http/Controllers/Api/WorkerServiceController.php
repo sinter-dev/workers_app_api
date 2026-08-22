@@ -9,8 +9,10 @@ use App\Models\WorkerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Services', description: 'Managing which service categories an authenticated worker offers')]
 class WorkerServiceController extends Controller
 {
     /**
@@ -21,6 +23,25 @@ class WorkerServiceController extends Controller
      * - Worker profile editing
      * - Homeowner marketplace filters
      */
+    #[OA\Get(
+        path: '/api/service-categories',
+        tags: ['Worker Services'],
+        summary: 'List all active service categories',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Service categories',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'service_categories', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function categories(
         Request $request
     ): JsonResponse {
@@ -53,6 +74,28 @@ class WorkerServiceController extends Controller
     /**
      * Return services currently selected by the authenticated worker.
      */
+    #[OA\Get(
+        path: '/api/worker/services',
+        tags: ['Worker Services'],
+        summary: 'Get the authenticated worker\'s selected services',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Selected services',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'services', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'selected_service_ids', type: 'array', items: new OA\Items(type: 'integer')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can manage services'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+        ]
+    )]
     public function index(
         Request $request
     ): JsonResponse {
@@ -115,6 +158,40 @@ class WorkerServiceController extends Controller
     /**
      * Update services offered by the authenticated worker.
      */
+    #[OA\Put(
+        path: '/api/worker/services',
+        tags: ['Worker Services'],
+        summary: 'Replace the authenticated worker\'s service selection',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['service_ids'],
+                properties: [
+                    new OA\Property(property: 'service_ids', type: 'array', items: new OA\Items(type: 'integer'), minItems: 1, maxItems: 20, example: [1, 3, 5]),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Services updated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'services', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'selected_service_ids', type: 'array', items: new OA\Items(type: 'integer')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can manage services'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+            new OA\Response(response: 422, description: 'Validation error or inactive service selected'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function update(
         Request $request
     ): JsonResponse {

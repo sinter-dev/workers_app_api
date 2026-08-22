@@ -11,13 +11,39 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Profile Sections', description: 'Granular, section-by-section updates to an existing worker profile')]
 class WorkerProfileSectionController extends Controller
 {
     /**
      * Update the worker's personal information.
      */
+    #[OA\Post(
+        path: '/api/worker/profile/personal',
+        tags: ['Worker Profile Sections'],
+        summary: 'Update National ID documents (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'national_id_front_document', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'national_id_back_document', type: 'string', format: 'binary', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function personal(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -164,6 +190,44 @@ class WorkerProfileSectionController extends Controller
     /**
      * Update the worker's professional information.
      */
+    #[OA\Put(
+        path: '/api/worker/profile/professional',
+        tags: ['Worker Profile Sections'],
+        summary: 'Update work type, availability, bio, experience, and rates',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['work_type', 'availability', 'experience_years'],
+                properties: [
+                    new OA\Property(property: 'work_type', type: 'string', enum: ['full_time', 'part_time']),
+                    new OA\Property(property: 'availability', type: 'string', enum: ['available', 'busy', 'unavailable']),
+                    new OA\Property(property: 'bio', type: 'string', nullable: true, maxLength: 2000),
+                    new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, maximum: 60),
+                    new OA\Property(property: 'hourly_rate', type: 'number', nullable: true),
+                    new OA\Property(property: 'monthly_rate', type: 'number', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Updated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                        new OA\Property(property: 'user', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function professional(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -267,6 +331,25 @@ class WorkerProfileSectionController extends Controller
     /**
      * Update National ID front and back documents.
      */
+    /**
+     * Update National ID front and back documents.
+     */
+    #[OA\Post(
+        path: '/api/worker/profile/verification',
+        tags: ['Worker Profile Sections'],
+        summary: 'Submit or update verification documents (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            content: new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(type: 'object'))
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function verification(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -425,6 +508,31 @@ class WorkerProfileSectionController extends Controller
     /**
      * Replace one or more gallery images.
      */
+    #[OA\Post(
+        path: '/api/worker/profile/gallery',
+        tags: ['Worker Profile Sections'],
+        summary: 'Update gallery photos (multipart/form-data)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'gallery_image_1', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'gallery_image_2', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'gallery_image_3', type: 'string', format: 'binary', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this'),
+            new OA\Response(response: 404, description: 'Worker profile not found'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Update failed'),
+        ]
+    )]
     public function gallery(Request $request): JsonResponse
     {
         $user = $request->user();

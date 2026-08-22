@@ -10,13 +10,53 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Marketplace', description: 'Homeowner-facing worker search, filtering, and sorting')]
 class WorkerMarketplaceController extends Controller
 {
     /**
      * Return searchable and filterable workers.
      */
+    #[OA\Get(
+        path: '/api/workers',
+        tags: ['Worker Marketplace'],
+        summary: 'Search and filter workers (homeowner only)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'district', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'min_age', in: 'query', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'max_age', in: 'query', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'gender', in: 'query', schema: new OA\Schema(type: 'string', enum: ['male', 'female', 'other'])),
+            new OA\Parameter(name: 'religion', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'work_type', in: 'query', schema: new OA\Schema(type: 'string', enum: ['full_time', 'part_time'])),
+            new OA\Parameter(name: 'availability', in: 'query', schema: new OA\Schema(type: 'string', enum: ['available', 'busy', 'unavailable'])),
+            new OA\Parameter(name: 'featured', in: 'query', schema: new OA\Schema(type: 'boolean')),
+            new OA\Parameter(name: 'rating', in: 'query', description: 'Minimum rating', schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'service', in: 'query', description: 'Service category slug or name', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'sort', in: 'query', schema: new OA\Schema(type: 'string', enum: ['newest', 'rating', 'experience', 'jobs_completed', 'name'])),
+            new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', default: 20)),
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Paginated, filtered worker list',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'workers', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'pagination', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can browse workers'),
+            new OA\Response(response: 500, description: 'Unable to load workers'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $viewer = $request->user();

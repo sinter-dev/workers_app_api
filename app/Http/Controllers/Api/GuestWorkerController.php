@@ -9,9 +9,28 @@ use App\Models\WorkerProfile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Guest Marketplace', description: 'Public, unauthenticated worker browsing (used for pre-login discovery)')]
 class GuestWorkerController extends Controller
 {
+    #[OA\Get(
+        path: '/api/guest/service-categories',
+        tags: ['Guest Marketplace'],
+        summary: 'List active service categories (public)',
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Service categories',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'service_categories', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+        ]
+    )]
     public function categories(): JsonResponse
     {
         $categories = ServiceCategory::query()
@@ -39,6 +58,30 @@ class GuestWorkerController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/api/guest/workers',
+        tags: ['Guest Marketplace'],
+        summary: 'Browse verified workers (public, paginated)',
+        parameters: [
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'service', in: 'query', description: 'Service category slug', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', default: 20)),
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Paginated worker list',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'workers', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'pagination', type: 'object'),
+                    ]
+                )
+            ),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -121,6 +164,28 @@ class GuestWorkerController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/api/guest/workers/{worker}/profile',
+        tags: ['Guest Marketplace'],
+        summary: 'Preview a worker\'s public profile (public, partial data)',
+        parameters: [
+            new OA\Parameter(name: 'worker', in: 'path', required: true, description: 'Worker user ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Worker preview profile with locked sections listed',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'worker', type: 'object'),
+                        new OA\Property(property: 'locked', type: 'array', items: new OA\Items(type: 'string'), example: ['full_bio', 'gallery', 'reviews', 'work_history', 'contact', 'hiring']),
+                    ]
+                )
+            ),
+            new OA\Response(response: 404, description: 'Worker profile not available'),
+        ]
+    )]
     public function show(User $worker): JsonResponse
     {
         if (

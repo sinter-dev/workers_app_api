@@ -8,12 +8,41 @@ use App\Models\JobApplication;
 use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Worker Home', description: 'Worker home screen feed (recommended, urgent, nearby jobs)')]
 class WorkerHomeController extends Controller
 {
     /**
      * Return the authenticated worker's home screen data.
      */
+    #[OA\Get(
+        path: '/api/worker/home',
+        tags: ['Worker Home'],
+        summary: 'Get worker home screen data',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Home screen job feed and summary counts',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'profile_completed', type: 'boolean'),
+                        new OA\Property(property: 'worker', type: 'object'),
+                        new OA\Property(property: 'summary', type: 'object'),
+                        new OA\Property(property: 'active_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'recommended_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'urgent_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'nearby_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'recent_jobs', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can access this page'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
