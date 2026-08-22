@@ -7,13 +7,35 @@ use App\Models\SavedWorker;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Saved Workers', description: 'Homeowner\'s bookmarked/favorited worker list')]
 class SavedWorkerController extends Controller
 {
     /**
      * Return all workers saved by the authenticated homeowner.
      */
+    #[OA\Get(
+        path: '/api/homeowner/saved-workers',
+        tags: ['Saved Workers'],
+        summary: 'List saved workers',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Saved workers',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'saved_workers', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can view saved workers'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $homeowner = $request->user();
@@ -57,6 +79,22 @@ class SavedWorkerController extends Controller
     /**
      * Save a worker for the authenticated homeowner.
      */
+    #[OA\Post(
+        path: '/api/homeowner/saved-workers/{worker}',
+        tags: ['Saved Workers'],
+        summary: 'Save (bookmark) a worker',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'worker', in: 'path', required: true, description: 'Worker user ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Already saved'),
+            new OA\Response(response: 201, description: 'Worker saved'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can save workers'),
+            new OA\Response(response: 422, description: 'Invalid or unavailable worker'),
+        ]
+    )]
     public function store(
         Request $request,
         User $worker
@@ -126,6 +164,20 @@ class SavedWorkerController extends Controller
     /**
      * Remove a worker from the homeowner's saved list.
      */
+    #[OA\Delete(
+        path: '/api/homeowner/saved-workers/{worker}',
+        tags: ['Saved Workers'],
+        summary: 'Remove a worker from saved list',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'worker', in: 'path', required: true, description: 'Worker user ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Removed (or was not saved)'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can remove saved workers'),
+        ]
+    )]
     public function destroy(
         Request $request,
         User $worker
