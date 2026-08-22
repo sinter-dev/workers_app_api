@@ -10,13 +10,38 @@ use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Homeowner Applications', description: 'Reviewing and deciding on worker applications for a homeowner\'s job')]
 class HomeownerApplicationController extends Controller
 {
     /**
      * List all applications for one homeowner job.
      */
+    #[OA\Get(
+        path: '/api/homeowner/jobs/{job}/applications',
+        tags: ['Homeowner Applications'],
+        summary: 'List applications for a job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Applications list',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'applications', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this job'),
+        ]
+    )]
     public function index(
         Request $request,
         Job $job
@@ -108,6 +133,21 @@ class HomeownerApplicationController extends Controller
     /**
      * Accept one worker application.
      */
+    #[OA\Patch(
+        path: '/api/homeowner/applications/{application}/accept',
+        tags: ['Homeowner Applications'],
+        summary: 'Accept a worker\'s application',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'application', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Application accepted, other applications auto-declined'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this job'),
+            new OA\Response(response: 422, description: 'Application is not pending or job no longer open'),
+        ]
+    )]
     public function accept(
         Request $request,
         JobApplication $application
@@ -247,6 +287,21 @@ class HomeownerApplicationController extends Controller
     /**
      * Decline one pending worker application.
      */
+    #[OA\Patch(
+        path: '/api/homeowner/applications/{application}/decline',
+        tags: ['Homeowner Applications'],
+        summary: 'Decline a worker\'s application',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'application', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Application declined'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this job'),
+            new OA\Response(response: 422, description: 'Application is not pending'),
+        ]
+    )]
     public function decline(
         Request $request,
         JobApplication $application

@@ -11,12 +11,29 @@ use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Worker Jobs', description: 'Viewing open jobs, applying, and managing applications as a worker')]
 class WorkerJobController extends Controller
 {
     /**
      * Show one open job to the authenticated worker.
      */
+    #[OA\Get(
+        path: '/api/worker/jobs/{job}',
+        tags: ['Worker Jobs'],
+        summary: 'View a single job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job details'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can view this'),
+            new OA\Response(response: 404, description: 'Job not found or not visible'),
+        ]
+    )]
     public function show(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -102,6 +119,29 @@ class WorkerJobController extends Controller
     /**
      * Apply for an open job.
      */
+    #[OA\Post(
+        path: '/api/worker/jobs/{job}/apply',
+        tags: ['Worker Jobs'],
+        summary: 'Apply for an open job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'message', type: 'string', nullable: true, maxLength: 2000),
+                    new OA\Property(property: 'expected_salary', type: 'number', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Application submitted'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only worker accounts can apply for jobs'),
+            new OA\Response(response: 422, description: 'Profile incomplete/unverified, or already applied'),
+        ]
+    )]
     public function apply(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -212,6 +252,25 @@ class WorkerJobController extends Controller
     /**
      * List applications submitted by the authenticated worker.
      */
+    #[OA\Get(
+        path: '/api/worker/applications',
+        tags: ['Worker Jobs'],
+        summary: 'List the authenticated worker\'s applications',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Application list',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'applications', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function applications(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -248,6 +307,21 @@ class WorkerJobController extends Controller
     /**
      * Withdraw a pending application.
      */
+    #[OA\Patch(
+        path: '/api/worker/applications/{application}/withdraw',
+        tags: ['Worker Jobs'],
+        summary: 'Withdraw a pending job application',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'application', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Application withdrawn'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not your application'),
+            new OA\Response(response: 422, description: 'Only pending applications can be withdrawn'),
+        ]
+    )]
     public function withdraw(
         Request $request,
         JobApplication $application

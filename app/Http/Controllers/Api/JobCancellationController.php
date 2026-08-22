@@ -10,10 +10,37 @@ use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Job Cancellation', description: 'Worker withdrawal from and homeowner cancellation of assigned jobs')]
 class JobCancellationController extends Controller
 {
+    #[OA\Patch(
+        path: '/api/worker/active-jobs/{job}/withdraw',
+        tags: ['Job Cancellation'],
+        summary: 'Withdraw from an assigned job (worker)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reason'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', maxLength: 100),
+                    new OA\Property(property: 'note', type: 'string', nullable: true, maxLength: 1000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Withdrawn'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Job not assigned to this worker'),
+            new OA\Response(response: 422, description: 'Job can no longer be withdrawn from'),
+        ]
+    )]
     public function workerWithdraw(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();
@@ -85,6 +112,31 @@ class JobCancellationController extends Controller
         }
     }
 
+    #[OA\Patch(
+        path: '/api/homeowner/active-jobs/{job}/cancel',
+        tags: ['Job Cancellation'],
+        summary: 'Cancel an assigned job (homeowner)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reason'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', maxLength: 100),
+                    new OA\Property(property: 'note', type: 'string', nullable: true, maxLength: 1000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Job cancelled'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this job'),
+            new OA\Response(response: 422, description: 'Job can no longer be cancelled'),
+        ]
+    )]
     public function homeownerCancel(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();

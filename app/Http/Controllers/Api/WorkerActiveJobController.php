@@ -11,13 +11,29 @@ use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Active Jobs', description: 'Managing jobs the worker has been assigned (start, complete)')]
 class WorkerActiveJobController extends Controller
 {
     /**
      * Show one job assigned to the authenticated worker.
      */
+    #[OA\Get(
+        path: '/api/worker/active-jobs/{job}',
+        tags: ['Worker Active Jobs'],
+        summary: 'View an assigned/active job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job details'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not assigned to this job'),
+        ]
+    )]
     public function show(
         Request $request,
         Job $job
@@ -70,6 +86,21 @@ class WorkerActiveJobController extends Controller
     /**
      * Start an accepted job.
      */
+    #[OA\Patch(
+        path: '/api/worker/active-jobs/{job}/start',
+        tags: ['Worker Active Jobs'],
+        summary: 'Mark an accepted job as started (in progress)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job marked in progress'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not assigned to this job'),
+            new OA\Response(response: 422, description: 'Job is not in an accepted state'),
+        ]
+    )]
     public function start(
         Request $request,
         Job $job
@@ -131,6 +162,21 @@ class WorkerActiveJobController extends Controller
      *
      * The homeowner must still confirm completion.
      */
+    #[OA\Patch(
+        path: '/api/worker/active-jobs/{job}/complete',
+        tags: ['Worker Active Jobs'],
+        summary: 'Mark a job as completed by the worker (pending homeowner confirmation)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job marked awaiting confirmation'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not assigned to this job'),
+            new OA\Response(response: 422, description: 'Job is not in progress'),
+        ]
+    )]
     public function complete(
         Request $request,
         Job $job

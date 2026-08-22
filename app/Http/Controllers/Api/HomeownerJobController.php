@@ -8,9 +8,57 @@ use App\Models\ServiceCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Homeowner Jobs', description: 'Posting, editing, and managing job listings as a homeowner')]
+#[OA\Schema(
+    schema: 'JobRequest',
+    required: ['title', 'service_category_ids', 'description', 'address', 'district', 'start_date', 'work_arrangement', 'contract_duration', 'budget_type', 'budget_amount'],
+    properties: [
+        new OA\Property(property: 'title', type: 'string', maxLength: 255),
+        new OA\Property(property: 'service_category_ids', type: 'array', items: new OA\Items(type: 'integer'), minItems: 1, maxItems: 8),
+        new OA\Property(property: 'description', type: 'string', maxLength: 5000),
+        new OA\Property(property: 'address', type: 'string'),
+        new OA\Property(property: 'district', type: 'string'),
+        new OA\Property(property: 'latitude', type: 'number', nullable: true),
+        new OA\Property(property: 'longitude', type: 'number', nullable: true),
+        new OA\Property(property: 'start_date', type: 'string', format: 'date'),
+        new OA\Property(property: 'start_time', type: 'string', nullable: true, example: '09:00'),
+        new OA\Property(property: 'work_arrangement', type: 'string', enum: ['full_time', 'part_time', 'one_time', 'temporary', 'live_in', 'weekend']),
+        new OA\Property(property: 'contract_duration', type: 'string'),
+        new OA\Property(property: 'budget_type', type: 'string', enum: ['fixed', 'daily', 'monthly']),
+        new OA\Property(property: 'budget_amount', type: 'number', minimum: 1000),
+        new OA\Property(property: 'accommodation_provided', type: 'boolean', nullable: true),
+        new OA\Property(property: 'meals_provided', type: 'boolean', nullable: true),
+        new OA\Property(property: 'transport_allowance', type: 'boolean', nullable: true),
+        new OA\Property(property: 'medical_support', type: 'boolean', nullable: true),
+        new OA\Property(property: 'uniform_provided', type: 'boolean', nullable: true),
+        new OA\Property(property: 'other_benefits', type: 'string', nullable: true, maxLength: 3000),
+        new OA\Property(property: 'is_urgent', type: 'boolean', nullable: true),
+    ]
+)]
 class HomeownerJobController extends Controller
 {
+    #[OA\Get(
+        path: '/api/homeowner/jobs',
+        tags: ['Homeowner Jobs'],
+        summary: 'List the authenticated homeowner\'s posted jobs',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Job list',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'jobs', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can access this'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -45,6 +93,32 @@ class HomeownerJobController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/homeowner/jobs',
+        tags: ['Homeowner Jobs'],
+        summary: 'Post a new job',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(ref: '#/components/schemas/JobRequest')
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Job posted',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'job', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can post jobs'),
+            new OA\Response(response: 422, description: 'Validation error or inactive service selected'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -103,6 +177,29 @@ class HomeownerJobController extends Controller
         ], 201);
     }
 
+    #[OA\Get(
+        path: '/api/homeowner/jobs/{job}',
+        tags: ['Homeowner Jobs'],
+        summary: 'Get a single posted job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Job details',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'job', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized (not the owner of this job)'),
+        ]
+    )]
     public function show(
         Request $request,
         Job $job
@@ -132,6 +229,25 @@ class HomeownerJobController extends Controller
         ]);
     }
 
+    #[OA\Put(
+        path: '/api/homeowner/jobs/{job}',
+        tags: ['Homeowner Jobs'],
+        summary: 'Update a posted job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(ref: '#/components/schemas/JobRequest')
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Job updated'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized or job no longer editable'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function update(
         Request $request,
         Job $job
@@ -197,6 +313,20 @@ class HomeownerJobController extends Controller
         ]);
     }
 
+    #[OA\Delete(
+        path: '/api/homeowner/jobs/{job}',
+        tags: ['Homeowner Jobs'],
+        summary: 'Delete a posted job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job deleted'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized or job no longer deletable'),
+        ]
+    )]
     public function destroy(
         Request $request,
         Job $job

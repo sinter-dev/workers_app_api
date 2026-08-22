@@ -9,13 +9,30 @@ use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Homeowner Job Completion', description: 'Homeowner confirmation that an assigned job was completed')]
 class HomeownerJobCompletionController extends Controller
 {
     /**
      * Confirm that the assigned worker completed the job.
      */
+    #[OA\Patch(
+        path: '/api/homeowner/jobs/{job}/confirm-completion',
+        tags: ['Homeowner Job Completion'],
+        summary: 'Confirm a job was completed by the assigned worker',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Job marked completed'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Only homeowner accounts can confirm job completion'),
+            new OA\Response(response: 422, description: 'Job is not awaiting confirmation'),
+        ]
+    )]
     public function confirm(
         Request $request,
         Job $job
