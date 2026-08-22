@@ -9,9 +9,32 @@ use App\Models\User;
 use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Admin Dashboard', description: 'Platform-wide statistics for administrators')]
 class AdminDashboardController extends Controller
 {
+    #[OA\Get(
+        path: '/api/admin/dashboard',
+        tags: ['Admin Dashboard'],
+        summary: 'Get admin dashboard statistics',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Dashboard stats',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'admin', type: 'object'),
+                        new OA\Property(property: 'stats', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         return response()->json([

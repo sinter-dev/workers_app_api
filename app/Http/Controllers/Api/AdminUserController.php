@@ -7,9 +7,37 @@ use App\Models\User;
 use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Admin Users', description: 'Administrator user management: search, view, suspend, deactivate, activate')]
 class AdminUserController extends Controller
 {
+    #[OA\Get(
+        path: '/api/admin/users',
+        tags: ['Admin Users'],
+        summary: 'List/search users',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'role', in: 'query', schema: new OA\Schema(type: 'string', enum: ['worker', 'homeowner', 'admin'])),
+            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: ['active', 'suspended', 'deactivated'])),
+            new OA\Parameter(name: 'verified', in: 'query', schema: new OA\Schema(type: 'integer', enum: [0, 1])),
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Users (up to 200)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'users', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -29,26 +57,103 @@ class AdminUserController extends Controller
         return response()->json(['success'=>true,'users'=>$q->latest()->limit(200)->get()]);
     }
 
+    #[OA\Get(
+        path: '/api/admin/users/{user}',
+        tags: ['Admin Users'],
+        summary: 'View a single user with activity summary',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'User with profile and activity counts'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function show(Request $request, User $user): JsonResponse
     {
-        $user->load(['workerProfile.services:id,name','workerProfile.galleryImages','homeownerProfile']);
-        return response()->json(['success'=>true,'user'=>$user,'activity'=>[
-            'jobs_posted'=>$user->jobsPosted()->count(),
-            'jobs_assigned'=>$user->acceptedJobs()->count(),
-            'applications'=>$user->applications()->count(),
+        $user->load(['workerProfile.services:id,name', 'workerProfile.galleryImages', 'homeownerProfile']);
+        return response()->json(['success' => true, 'user' => $user, 'activity' => [
+            'jobs_posted' => $user->jobsPosted()->count(),
+            'jobs_assigned' => $user->acceptedJobs()->count(),
+            'applications' => $user->applications()->count(),
         ]]);
     }
 
+    #[OA\Post(
+        path: '/api/admin/users/{user}/suspend',
+        tags: ['Admin Users'],
+        summary: 'Suspend a user account',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reason'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', minLength: 5, maxLength: 1000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'User suspended'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+            new OA\Response(response: 422, description: 'Cannot suspend self or another admin'),
+        ]
+    )]
     public function suspend(Request $request, User $user): JsonResponse
     {
         return $this->changeStatus($request,$user,'suspended');
     }
 
+    #[OA\Post(
+        path: '/api/admin/users/{user}/deactivate',
+        tags: ['Admin Users'],
+        summary: 'Deactivate a user account (revokes active sessions)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reason'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', minLength: 5, maxLength: 1000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'User deactivated'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+            new OA\Response(response: 422, description: 'Cannot deactivate self or another admin'),
+        ]
+    )]
     public function deactivate(Request $request, User $user): JsonResponse
     {
         return $this->changeStatus($request,$user,'deactivated');
     }
 
+    #[OA\Post(
+        path: '/api/admin/users/{user}/activate',
+        tags: ['Admin Users'],
+        summary: 'Restore a suspended or deactivated user to active',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Account restored'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+            new OA\Response(response: 422, description: 'Account is already active'),
+        ]
+    )]
     public function activate(Request $request, User $user): JsonResponse
     {
         if ($user->id === $request->user()->id) return response()->json(['success'=>false,'message'=>'Your administrator account is already active.'],422);

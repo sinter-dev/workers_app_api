@@ -9,9 +9,35 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Admin Worker Verification', description: 'Administrator review of worker identity/profile verification submissions')]
 class AdminWorkerVerificationController extends Controller
 {
+    #[OA\Get(
+        path: '/api/admin/worker-verifications',
+        tags: ['Admin Worker Verification'],
+        summary: 'List worker verification submissions',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string', enum: ['pending', 'approved', 'rejected', 'all'], default: 'pending')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Worker verification queue',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'status', type: 'string'),
+                        new OA\Property(property: 'workers', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -45,6 +71,20 @@ class AdminWorkerVerificationController extends Controller
         ]);
     }
 
+    #[OA\Get(
+        path: '/api/admin/worker-verifications/{workerProfile}',
+        tags: ['Admin Worker Verification'],
+        summary: 'View full verification details for one worker',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'workerProfile', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Full worker verification details'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function show(WorkerProfile $workerProfile): JsonResponse
     {
         $workerProfile->load([
@@ -59,6 +99,20 @@ class AdminWorkerVerificationController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/admin/worker-verifications/{workerProfile}/approve',
+        tags: ['Admin Worker Verification'],
+        summary: 'Approve a worker\'s verification',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'workerProfile', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Worker approved'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+        ]
+    )]
     public function approve(Request $request, WorkerProfile $workerProfile): JsonResponse
     {
         $admin = $request->user();
@@ -94,6 +148,30 @@ class AdminWorkerVerificationController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/admin/worker-verifications/{workerProfile}/reject',
+        tags: ['Admin Worker Verification'],
+        summary: 'Reject a worker\'s verification',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'workerProfile', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reason'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', minLength: 5, maxLength: 2000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Worker verification rejected'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not an administrator'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function reject(Request $request, WorkerProfile $workerProfile): JsonResponse
     {
         $validated = $request->validate([
