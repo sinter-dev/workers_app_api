@@ -9,10 +9,27 @@ use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Throwable;
 
+#[OA\Tag(name: 'Worker Invitations', description: 'Worker responding to a homeowner\'s direct job invitation')]
 class WorkerInvitationController extends Controller
 {
+    #[OA\Patch(
+        path: '/api/worker/invitations/{application}/accept',
+        tags: ['Worker Invitations'],
+        summary: 'Accept a job invitation',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'application', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Invitation accepted, job assigned'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the invited worker'),
+            new OA\Response(response: 422, description: 'Invitation is not pending'),
+        ]
+    )]
     public function accept(Request $request, JobApplication $application): JsonResponse
     {
         $user = $request->user();
@@ -110,6 +127,21 @@ class WorkerInvitationController extends Controller
         }
     }
 
+    #[OA\Patch(
+        path: '/api/worker/invitations/{application}/decline',
+        tags: ['Worker Invitations'],
+        summary: 'Decline a job invitation',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'application', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Invitation declined'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the invited worker'),
+            new OA\Response(response: 422, description: 'Invitation is not pending'),
+        ]
+    )]
     public function decline(Request $request, JobApplication $application): JsonResponse
     {
         $user = $request->user();

@@ -9,9 +9,35 @@ use App\Models\User;
 use App\Models\WorkerProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Homeowner Invitations', description: 'Homeowner directly inviting a specific worker to an existing open job')]
 class HomeownerInvitationController extends Controller
 {
+    #[OA\Post(
+        path: '/api/homeowner/jobs/{job}/invite-worker',
+        tags: ['Homeowner Invitations'],
+        summary: 'Invite a specific worker to apply for an open job',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'job', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['worker_id'],
+                properties: [
+                    new OA\Property(property: 'worker_id', type: 'integer'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Invitation sent'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the job owner'),
+            new OA\Response(response: 422, description: 'Job no longer open, or invalid worker'),
+        ]
+    )]
     public function store(Request $request, Job $job): JsonResponse
     {
         $user = $request->user();

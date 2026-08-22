@@ -13,12 +13,33 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Hiring Requests', description: 'Direct hiring flow: homeowners send hiring offers to specific workers')]
 class HiringRequestController extends Controller
 {
     /**
      * Homeowner: list hiring requests they have sent.
      */
+    #[OA\Get(
+        path: '/api/hiring/homeowner',
+        tags: ['Hiring Requests'],
+        summary: 'List hiring requests sent by the authenticated homeowner',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Hiring requests',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'hiring_requests', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only homeowners can access this'),
+        ]
+    )]
     public function homeownerIndex(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -55,6 +76,25 @@ class HiringRequestController extends Controller
     /**
      * Worker: list hiring requests received.
      */
+    #[OA\Get(
+        path: '/api/hiring/worker',
+        tags: ['Hiring Requests'],
+        summary: 'List hiring requests received by the authenticated worker',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Hiring requests',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'hiring_requests', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only workers can access this'),
+        ]
+    )]
     public function workerIndex(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -91,6 +131,25 @@ class HiringRequestController extends Controller
     /**
      * Homeowner: return open jobs that can be used to hire a worker.
      */
+    #[OA\Get(
+        path: '/api/hiring/available-jobs',
+        tags: ['Hiring Requests'],
+        summary: 'List the homeowner\'s open jobs available for direct hiring',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Open jobs',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'jobs', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only homeowners can access this'),
+        ]
+    )]
     public function availableJobs(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -125,6 +184,30 @@ class HiringRequestController extends Controller
     /**
      * Homeowner: send a hiring request to a worker.
      */
+    #[OA\Post(
+        path: '/api/hiring/requests',
+        tags: ['Hiring Requests'],
+        summary: 'Send a hiring request for an existing open job',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['job_id', 'worker_id'],
+                properties: [
+                    new OA\Property(property: 'job_id', type: 'integer'),
+                    new OA\Property(property: 'worker_id', type: 'integer'),
+                    new OA\Property(property: 'message', type: 'string', nullable: true, maxLength: 1000),
+                    new OA\Property(property: 'offered_amount', type: 'number', nullable: true),
+                    new OA\Property(property: 'start_date', type: 'string', format: 'date', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Hiring request sent'),
+            new OA\Response(response: 403, description: 'Not the job owner, or worker not approved'),
+            new OA\Response(response: 422, description: 'Job not open, invalid worker, or request already exists'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $homeowner = $request->user();
@@ -254,6 +337,26 @@ class HiringRequestController extends Controller
      * the existing accept -> active job -> complete workflow. The homeowner
      * and worker can agree on salary, schedule and other details in chat.
      */
+    #[OA\Post(
+        path: '/api/hiring/quick-requests',
+        tags: ['Hiring Requests'],
+        summary: 'Send a quick hiring request (auto-creates a minimal private job)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['worker_id'],
+                properties: [
+                    new OA\Property(property: 'worker_id', type: 'integer'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Quick hiring request sent'),
+            new OA\Response(response: 403, description: 'Only homeowners, or worker not approved'),
+            new OA\Response(response: 422, description: 'Invalid worker or request already exists'),
+        ]
+    )]
     public function storeQuick(Request $request): JsonResponse
     {
         $homeowner = $request->user();
@@ -372,6 +475,37 @@ class HiringRequestController extends Controller
     /**
      * Homeowner: create a private job and send it directly to one worker.
      */
+    #[OA\Post(
+        path: '/api/hiring/direct-offers',
+        tags: ['Hiring Requests'],
+        summary: 'Create a private job and send a direct offer to one worker',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['worker_id', 'title', 'description', 'address', 'district', 'start_date', 'duration', 'budget_type', 'offered_amount', 'service_ids'],
+                properties: [
+                    new OA\Property(property: 'worker_id', type: 'integer'),
+                    new OA\Property(property: 'title', type: 'string', maxLength: 150),
+                    new OA\Property(property: 'description', type: 'string', maxLength: 2000),
+                    new OA\Property(property: 'address', type: 'string'),
+                    new OA\Property(property: 'district', type: 'string'),
+                    new OA\Property(property: 'start_date', type: 'string', format: 'date'),
+                    new OA\Property(property: 'duration', type: 'string'),
+                    new OA\Property(property: 'work_arrangement', type: 'string', nullable: true),
+                    new OA\Property(property: 'budget_type', type: 'string', enum: ['fixed', 'daily', 'monthly']),
+                    new OA\Property(property: 'offered_amount', type: 'number'),
+                    new OA\Property(property: 'message', type: 'string', nullable: true, maxLength: 1000),
+                    new OA\Property(property: 'service_ids', type: 'array', items: new OA\Items(type: 'integer'), minItems: 1, maxItems: 20),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Direct offer sent'),
+            new OA\Response(response: 403, description: 'Only homeowners, or worker not approved'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ]
+    )]
     public function storeDirect(Request $request): JsonResponse
     {
         $homeowner = $request->user();
@@ -491,6 +625,19 @@ class HiringRequestController extends Controller
     /**
      * Show one hiring request.
      */
+    #[OA\Get(
+        path: '/api/hiring/requests/{hiringRequest}',
+        tags: ['Hiring Requests'],
+        summary: 'View a single hiring request',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hiringRequest', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Hiring request details'),
+            new OA\Response(response: 403, description: 'Not a party to this request'),
+        ]
+    )]
     public function show(
         Request $request,
         HiringRequest $hiringRequest
@@ -523,6 +670,20 @@ class HiringRequestController extends Controller
     /**
      * Worker: accept a pending hiring request.
      */
+    #[OA\Post(
+        path: '/api/hiring/requests/{hiringRequest}/accept',
+        tags: ['Hiring Requests'],
+        summary: 'Accept a pending hiring request (worker)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hiringRequest', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Hiring request accepted, job assigned'),
+            new OA\Response(response: 403, description: 'Not the recipient of this request'),
+            new OA\Response(response: 422, description: 'Request is not pending'),
+        ]
+    )]
     public function accept(
         Request $request,
         HiringRequest $hiringRequest
@@ -666,6 +827,20 @@ class HiringRequestController extends Controller
     /**
      * Worker: decline a pending hiring request.
      */
+    #[OA\Post(
+        path: '/api/hiring/requests/{hiringRequest}/decline',
+        tags: ['Hiring Requests'],
+        summary: 'Decline a pending hiring request (worker)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hiringRequest', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Hiring request declined'),
+            new OA\Response(response: 403, description: 'Not the recipient of this request'),
+            new OA\Response(response: 422, description: 'Request is not pending'),
+        ]
+    )]
     public function decline(
         Request $request,
         HiringRequest $hiringRequest
@@ -716,6 +891,20 @@ class HiringRequestController extends Controller
     /**
      * Homeowner: cancel a pending hiring request.
      */
+    #[OA\Post(
+        path: '/api/hiring/requests/{hiringRequest}/cancel',
+        tags: ['Hiring Requests'],
+        summary: 'Cancel a pending hiring request (homeowner)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hiringRequest', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Hiring request cancelled'),
+            new OA\Response(response: 403, description: 'Not the sender of this request'),
+            new OA\Response(response: 422, description: 'Request is not pending'),
+        ]
+    )]
     public function cancel(
         Request $request,
         HiringRequest $hiringRequest
@@ -766,6 +955,20 @@ class HiringRequestController extends Controller
     /**
      * Homeowner: mark an accepted/in-progress hire as completed.
      */
+    #[OA\Post(
+        path: '/api/hiring/requests/{hiringRequest}/complete',
+        tags: ['Hiring Requests'],
+        summary: 'Mark a hire as completed (homeowner)',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'hiringRequest', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked completed'),
+            new OA\Response(response: 403, description: 'Not the sender of this request'),
+            new OA\Response(response: 422, description: 'Request is not in an accepted/active state'),
+        ]
+    )]
     public function complete(
         Request $request,
         HiringRequest $hiringRequest
