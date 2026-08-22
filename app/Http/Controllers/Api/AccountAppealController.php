@@ -6,9 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\AccountAppeal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Account Appeals', description: 'Suspended users checking status and submitting appeals (accessible even when suspended)')]
 class AccountAppealController extends Controller
 {
+    #[OA\Get(
+        path: '/api/account/status',
+        tags: ['Account Appeals'],
+        summary: 'Get the authenticated user\'s account status and latest appeal',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Account status',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'account_status', type: 'string', example: 'active'),
+                        new OA\Property(property: 'account_status_reason', type: 'string', nullable: true),
+                        new OA\Property(property: 'account_status_changed_at', type: 'string', nullable: true),
+                        new OA\Property(property: 'latest_appeal', type: 'object', nullable: true),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ]
+    )]
     public function status(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -25,6 +49,26 @@ class AccountAppealController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/account/appeals',
+        tags: ['Account Appeals'],
+        summary: 'Submit a suspension appeal',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['message'],
+                properties: [
+                    new OA\Property(property: 'message', type: 'string', minLength: 20, maxLength: 2000),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Appeal submitted'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Account not suspended, or an appeal is already pending'),
+        ]
+    )]
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();

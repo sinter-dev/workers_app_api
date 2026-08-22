@@ -8,9 +8,31 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use OpenApi\Attributes as OA;
 
+#[OA\Tag(name: 'Account Control', description: 'Self-service account deactivation and deletion requests')]
 class AccountControlController extends Controller
 {
+    #[OA\Post(
+        path: '/api/account/deactivate',
+        tags: ['Account Control'],
+        summary: 'Temporarily deactivate the authenticated user\'s account',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['password'],
+                properties: [
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Account deactivated, all tokens/sessions revoked'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Incorrect password, or account is suspended'),
+        ]
+    )]
     public function deactivate(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -56,6 +78,27 @@ class AccountControlController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/account/request-deletion',
+        tags: ['Account Control'],
+        summary: 'Request account deletion (30-day grace period, restorable by logging in)',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['password', 'confirmation'],
+                properties: [
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                    new OA\Property(property: 'confirmation', type: 'string', enum: ['DELETE'], description: 'Must be the literal string "DELETE"'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Deletion scheduled in 30 days'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Incorrect password, wrong confirmation, or account is suspended'),
+        ]
+    )]
     public function requestDeletion(Request $request): JsonResponse
     {
         $user = $request->user();
