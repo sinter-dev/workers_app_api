@@ -279,9 +279,25 @@ class MessageController extends Controller
             $recipientId = $conversation->homeowner_id === $user->id
                 ? $conversation->worker_id
                 : $conversation->homeowner_id;
+            $pushPreview = $this->buildLastMessagePreview(
+                $result['message']
+            );
+
             AppNotificationService::send(
-                $recipientId, 'new_message', 'messages', 'New message',
-                $user->full_name . ' sent you a message.', 'conversation', $conversation->id
+                $recipientId,
+                'new_message',
+                'messages',
+                'New message from ' . $user->full_name,
+                $pushPreview,
+                'conversation',
+                $conversation->id,
+                [
+                    'conversation_id' => $conversation->id,
+                    'sender_id' => $user->id,
+                    'sender_name' => $user->full_name,
+                    'message_id' => $result['message']->id,
+                    'message_type' => $result['message']->message_type,
+                ]
             );
 
             return response()->json([

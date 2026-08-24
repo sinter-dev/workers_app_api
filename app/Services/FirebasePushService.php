@@ -124,8 +124,24 @@ class FirebasePushService
                         'android' => [
                             'priority' => 'high',
                             'notification' => [
-                                'channel_id' => 'maids_app_default',
+                                'channel_id' => 'worklink_messages',
                                 'sound' => 'default',
+                                'default_vibrate_timings' => true,
+                                'notification_priority' => 'PRIORITY_MAX',
+                                'visibility' => 'PUBLIC',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ],
+                        ],
+                        'apns' => [
+                            'headers' => [
+                                'apns-priority' => '10',
+                            ],
+                            'payload' => [
+                                'aps' => [
+                                    'sound' => 'default',
+                                    'badge' => 1,
+                                    'content-available' => 1,
+                                ],
                             ],
                         ],
                     ],
