@@ -55,7 +55,7 @@ class AppNotificationService
                 ] + $data
             );
 
-            Log::info('Firebase push delivery result.', [
+            Log::error('Firebase push delivery result.', [
                 'notification_id' => $notification->id,
                 'user_id' => $userId,
                 'type' => $type,
