@@ -3,12 +3,22 @@ services:
     image: ghcr.io/sinter-dev/workers_app_api:${IMAGE_TAG:-latest}
     container_name: workers_app_api
     restart: unless-stopped
+
     env_file:
       - .env
+
     ports:
       - "127.0.0.1:8080:80"
+
     volumes:
+      # Persistent user uploads.
       - uploads:/var/www/html/storage/app/public
+
+      # Firebase Admin service-account credential.
+      # The secret stays permanently on the VPS host and is mounted
+      # read-only into every replacement container created by CI/CD.
+      - /opt/workers/secrets/firebase-service-account.json:/var/www/html/storage/app/firebase/firebase-service-account.json:ro
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api"]
       interval: 30s

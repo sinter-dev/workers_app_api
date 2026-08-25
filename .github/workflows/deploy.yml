@@ -28,9 +28,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -50,7 +47,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Copy compose file to VPS
+      - name: Copy production compose file to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -67,8 +64,20 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            set -e
-            cd /opt/workers_app_api
+            set -euo pipefail
+
+            APP_DIR="/opt/workers_app_api"
+            FIREBASE_SECRET="/opt/workers/secrets/firebase-service-account.json"
+            FIREBASE_CONTAINER_PATH="/var/www/html/storage/app/firebase/firebase-service-account.json"
+
+            cd "$APP_DIR"
+
+            echo "Checking permanent Firebase credential..."
+            if [ ! -s "$FIREBASE_SECRET" ]; then
+              echo "ERROR: Firebase service-account credential is missing or empty:"
+              echo "$FIREBASE_SECRET"
+              exit 1
+            fi
 
             cat > .env <<'ENVEOF'
             APP_NAME="Workers App Uganda API"
@@ -92,13 +101,80 @@ jobs:
             CACHE_STORE=database
             QUEUE_CONNECTION=database
 
+            FIREBASE_CREDENTIALS=/var/www/html/storage/app/firebase/firebase-service-account.json
+
             L5_SWAGGER_GENERATE_ALWAYS=false
             L5_SWAGGER_CONST_HOST=https://workersapi.robylinks.com
             ENVEOF
 
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_PULL_TOKEN }}" |               docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+            echo "Validating production Compose configuration..."
+            docker compose -f docker-compose.prod.yml config >/dev/null
+
+            echo "Pulling latest API image..."
             docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
+
+            echo "Recreating API container..."
+            docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+            echo "Waiting for workers_app_api to become healthy..."
+            for i in $(seq 1 30); do
+              STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' workers_app_api 2>/dev/null || true)"
+
+              if [ "$STATUS" = "healthy" ]; then
+                echo "workers_app_api is healthy."
+                break
+              fi
+
+              if [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+                echo "ERROR: workers_app_api stopped during deployment."
+                docker logs --tail 200 workers_app_api || true
+                exit 1
+              fi
+
+              if [ "$i" -eq 30 ]; then
+                echo "ERROR: workers_app_api did not become healthy in time."
+                docker ps -a
+                docker logs --tail 200 workers_app_api || true
+                exit 1
+              fi
+
+              sleep 2
+            done
+
+            echo "Checking Firebase credential inside the new container..."
+            docker exec workers_app_api test -s "$FIREBASE_CONTAINER_PATH"
+
+            echo "Checking Laravel Firebase configuration..."
+            FIREBASE_CHECK="$(
+              docker exec workers_app_api                 php artisan tinker --execute="echo is_file(config('services.firebase.credentials')) ? 'OK' : 'MISSING';"
+            )"
+
+            echo "$FIREBASE_CHECK" | grep -q "OK" || {
+              echo "ERROR: Laravel cannot read the Firebase service-account file."
+              exit 1
+            }
+
+            echo "Clearing Laravel caches..."
+            docker exec workers_app_api php artisan optimize:clear
+
+            echo "Running database migrations..."
+            docker exec workers_app_api php artisan migrate --force
+
+            echo "Caching production configuration..."
+            docker exec workers_app_api php artisan config:cache
+
+            echo "Final Firebase credential check after config cache..."
+            FINAL_FIREBASE_CHECK="$(
+              docker exec workers_app_api                 php artisan tinker --execute="echo is_file(config('services.firebase.credentials')) ? 'OK' : 'MISSING';"
+            )"
+
+            echo "$FINAL_FIREBASE_CHECK" | grep -q "OK" || {
+              echo "ERROR: Firebase credential became unavailable after Laravel config cache."
+              exit 1
+            }
+
+            echo "Deployment completed successfully."
+            docker ps --filter name=workers_app_api
             docker image prune -f
