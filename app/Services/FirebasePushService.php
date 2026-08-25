@@ -129,7 +129,6 @@ class FirebasePushService
                                 'default_vibrate_timings' => true,
                                 'notification_priority' => 'PRIORITY_MAX',
                                 'visibility' => 'PUBLIC',
-                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                             ],
                         ],
                         'apns' => [
