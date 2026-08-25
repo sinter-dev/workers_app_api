@@ -18,10 +18,6 @@ class AppNotificationService
         ?int $actionId = null,
         array $data = []
     ): AppNotification {
-        /*
-         * MySQL remains the source of truth. Always save the in-app
-         * notification first.
-         */
         $notification = AppNotification::query()->create([
             'user_id' => $userId,
             'type' => $type,
@@ -33,14 +29,6 @@ class AppNotificationService
             'data' => $data ?: null,
         ]);
 
-        /*
-         * Firebase is an additional delivery channel. A temporary Firebase
-         * problem must never stop the core Workers App workflow.
-         *
-         * IMPORTANT:
-         * We now log the Firebase delivery summary so production messaging
-         * problems can be diagnosed without breaking the message request.
-         */
         try {
             $pushResult = app(FirebasePushService::class)->sendToUser(
                 $userId,
@@ -55,7 +43,7 @@ class AppNotificationService
                 ] + $data
             );
 
-            Log::error('Firebase push delivery result.', [
+            Log::error('FCM_AUTOMATIC_PUSH_RESULT', [
                 'notification_id' => $notification->id,
                 'user_id' => $userId,
                 'type' => $type,
@@ -68,18 +56,16 @@ class AppNotificationService
                 'removed' => $pushResult['removed'] ?? null,
             ]);
         } catch (Throwable $error) {
-            Log::warning(
-                'Push notification could not be delivered.',
-                [
-                    'notification_id' => $notification->id,
-                    'user_id' => $userId,
-                    'type' => $type,
-                    'category' => $category,
-                    'action_type' => $actionType,
-                    'action_id' => $actionId,
-                    'message' => $error->getMessage(),
-                ]
-            );
+            Log::error('FCM_AUTOMATIC_PUSH_EXCEPTION', [
+                'notification_id' => $notification->id,
+                'user_id' => $userId,
+                'type' => $type,
+                'category' => $category,
+                'action_type' => $actionType,
+                'action_id' => $actionId,
+                'exception' => $error::class,
+                'message' => $error->getMessage(),
+            ]);
         }
 
         return $notification;
