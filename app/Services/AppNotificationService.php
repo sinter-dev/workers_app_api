@@ -35,10 +35,14 @@ class AppNotificationService
 
         /*
          * Firebase is an additional delivery channel. A temporary Firebase
-         * problem must never stop the core Maid App workflow.
+         * problem must never stop the core Workers App workflow.
+         *
+         * IMPORTANT:
+         * We now log the Firebase delivery summary so production messaging
+         * problems can be diagnosed without breaking the message request.
          */
         try {
-            app(FirebasePushService::class)->sendToUser(
+            $pushResult = app(FirebasePushService::class)->sendToUser(
                 $userId,
                 $title,
                 $body,
@@ -50,12 +54,29 @@ class AppNotificationService
                     'action_id' => $actionId,
                 ] + $data
             );
+
+            Log::info('Firebase push delivery result.', [
+                'notification_id' => $notification->id,
+                'user_id' => $userId,
+                'type' => $type,
+                'category' => $category,
+                'action_type' => $actionType,
+                'action_id' => $actionId,
+                'devices' => $pushResult['devices'] ?? null,
+                'sent' => $pushResult['sent'] ?? null,
+                'failed' => $pushResult['failed'] ?? null,
+                'removed' => $pushResult['removed'] ?? null,
+            ]);
         } catch (Throwable $error) {
             Log::warning(
                 'Push notification could not be delivered.',
                 [
                     'notification_id' => $notification->id,
                     'user_id' => $userId,
+                    'type' => $type,
+                    'category' => $category,
+                    'action_type' => $actionType,
+                    'action_id' => $actionId,
                     'message' => $error->getMessage(),
                 ]
             );
