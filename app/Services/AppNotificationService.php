@@ -18,6 +18,10 @@ class AppNotificationService
         ?int $actionId = null,
         array $data = []
     ): AppNotification {
+        /*
+         * MySQL remains the source of truth.
+         * Always save the in-app notification first.
+         */
         $notification = AppNotification::query()->create([
             'user_id' => $userId,
             'type' => $type,
@@ -29,8 +33,12 @@ class AppNotificationService
             'data' => $data ?: null,
         ]);
 
+        /*
+         * Firebase is an additional delivery channel.
+         * A temporary Firebase problem must never stop the main app workflow.
+         */
         try {
-            $pushResult = app(FirebasePushService::class)->sendToUser(
+            app(FirebasePushService::class)->sendToUser(
                 $userId,
                 $title,
                 $body,
@@ -42,30 +50,20 @@ class AppNotificationService
                     'action_id' => $actionId,
                 ] + $data
             );
-
-            Log::error('FCM_AUTOMATIC_PUSH_RESULT', [
-                'notification_id' => $notification->id,
-                'user_id' => $userId,
-                'type' => $type,
-                'category' => $category,
-                'action_type' => $actionType,
-                'action_id' => $actionId,
-                'devices' => $pushResult['devices'] ?? null,
-                'sent' => $pushResult['sent'] ?? null,
-                'failed' => $pushResult['failed'] ?? null,
-                'removed' => $pushResult['removed'] ?? null,
-            ]);
         } catch (Throwable $error) {
-            Log::error('FCM_AUTOMATIC_PUSH_EXCEPTION', [
-                'notification_id' => $notification->id,
-                'user_id' => $userId,
-                'type' => $type,
-                'category' => $category,
-                'action_type' => $actionType,
-                'action_id' => $actionId,
-                'exception' => $error::class,
-                'message' => $error->getMessage(),
-            ]);
+            Log::error(
+                'Push notification could not be delivered.',
+                [
+                    'notification_id' => $notification->id,
+                    'user_id' => $userId,
+                    'type' => $type,
+                    'category' => $category,
+                    'action_type' => $actionType,
+                    'action_id' => $actionId,
+                    'exception' => $error::class,
+                    'message' => $error->getMessage(),
+                ]
+            );
         }
 
         return $notification;
