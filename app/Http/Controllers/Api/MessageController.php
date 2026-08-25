@@ -296,7 +296,7 @@ class MessageController extends Controller
                     'sender_id' => $user->id,
                     'sender_name' => $user->full_name,
                     'message_id' => $result['message']->id,
-                    'message_type' => $result['message']->message_type,
+                    'chat_message_type' => $result['message']->message_type,
                 ]
             );
 
