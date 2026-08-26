@@ -118,6 +118,17 @@ public function receivedHiringRequests(): HasMany
         );
     }
 
+    /**
+     * Company profile belonging to this user.
+     */
+    public function companyProfile()
+    {
+        return $this->hasOne(
+            CompanyProfile::class,
+            'user_id'
+        );
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Jobs

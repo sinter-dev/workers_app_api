@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\HomeownerJobController;
 use App\Http\Controllers\Api\JobCancellationController;
 use App\Http\Controllers\Api\HomeownerInvitationController;
 use App\Http\Controllers\Api\HomeownerProfileController;
+use App\Http\Controllers\Api\CompanyProfileController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -426,6 +427,22 @@ Route::prefix('hiring')->group(function () {
 
     Route::post('/homeowner/profile', [
         HomeownerProfileController::class,
+        'store',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Company Profile
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/company/profile', [
+        CompanyProfileController::class,
+        'show',
+    ]);
+
+    Route::post('/company/profile', [
+        CompanyProfileController::class,
         'store',
     ]);
 
