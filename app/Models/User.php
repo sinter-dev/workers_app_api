@@ -152,6 +152,18 @@ public function receivedHiringRequests(): HasMany
         );
     }
 
+    /**
+     * Quotes this user (worker or company) has submitted on
+     * service requests.
+     */
+    public function serviceQuotes()
+    {
+        return $this->hasMany(
+            ServiceQuote::class,
+            'provider_id'
+        );
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Jobs

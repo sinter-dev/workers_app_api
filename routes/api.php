@@ -16,6 +16,9 @@ use App\Http\Controllers\Api\CompanyMarketplaceController;
 use App\Http\Controllers\Api\CompanyPublicProfileController;
 use App\Http\Controllers\Api\AgencyMarketplaceController;
 use App\Http\Controllers\Api\AgencyPublicProfileController;
+use App\Http\Controllers\Api\HomeownerServiceRequestController;
+use App\Http\Controllers\Api\ProviderServiceRequestController;
+use App\Http\Controllers\Api\ServiceQuoteController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -245,6 +248,73 @@ Route::prefix('hiring')->group(function () {
     Route::put('/worker/work-wanted/{post}', [WorkWantedPostController::class, 'update']);
     Route::patch('/worker/work-wanted/{post}/status', [WorkWantedPostController::class, 'status']);
     Route::get('/homeowner/work-wanted', [WorkWantedPostController::class, 'index']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Book a Service (homeowner side)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/homeowner/service-requests', [
+        HomeownerServiceRequestController::class,
+        'index',
+    ]);
+
+    Route::post('/homeowner/service-requests', [
+        HomeownerServiceRequestController::class,
+        'store',
+    ]);
+
+    Route::get('/homeowner/service-requests/{serviceRequest}', [
+        HomeownerServiceRequestController::class,
+        'show',
+    ]);
+
+    Route::put('/homeowner/service-requests/{serviceRequest}', [
+        HomeownerServiceRequestController::class,
+        'update',
+    ]);
+
+    Route::delete('/homeowner/service-requests/{serviceRequest}', [
+        HomeownerServiceRequestController::class,
+        'destroy',
+    ]);
+
+    Route::get('/homeowner/service-requests/{serviceRequest}/quotes', [
+        ServiceQuoteController::class,
+        'homeownerIndex',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Book a Service (provider side: worker or company)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/provider/service-requests', [
+        ProviderServiceRequestController::class,
+        'index',
+    ]);
+
+    Route::get('/provider/service-requests/{serviceRequest}', [
+        ProviderServiceRequestController::class,
+        'show',
+    ]);
+
+    Route::post('/provider/service-requests/{serviceRequest}/quotes', [
+        ServiceQuoteController::class,
+        'store',
+    ]);
+
+    Route::get('/provider/service-quotes', [
+        ServiceQuoteController::class,
+        'providerIndex',
+    ]);
+
+    Route::patch('/provider/service-quotes/{quote}/withdraw', [
+        ServiceQuoteController::class,
+        'withdraw',
+    ]);
 
     /*
     |--------------------------------------------------------------------------
