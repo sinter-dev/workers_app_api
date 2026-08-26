@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\HomeownerInvitationController;
 use App\Http\Controllers\Api\HomeownerProfileController;
 use App\Http\Controllers\Api\CompanyProfileController;
 use App\Http\Controllers\Api\AgencyProfileController;
+use App\Http\Controllers\Api\AgencyManagedWorkerController;
+use App\Http\Controllers\Api\AgencyWorkerRequestController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -473,6 +475,63 @@ Route::prefix('hiring')->group(function () {
     Route::post('/agency/profile/resubmit-verification', [
         AgencyProfileController::class,
         'resubmitVerification',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Agency Managed Workers
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/agency/workers', [
+        AgencyManagedWorkerController::class,
+        'index',
+    ]);
+
+    Route::post('/agency/workers', [
+        AgencyManagedWorkerController::class,
+        'store',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Agency Worker Requests (join requests + invitations)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/worker/agency-requests', [
+        AgencyWorkerRequestController::class,
+        'workerIndex',
+    ]);
+
+    Route::post('/worker/agency-requests', [
+        AgencyWorkerRequestController::class,
+        'storeAsWorker',
+    ]);
+
+    Route::get('/agency/worker-requests', [
+        AgencyWorkerRequestController::class,
+        'agencyIndex',
+    ]);
+
+    Route::post('/agency/worker-requests', [
+        AgencyWorkerRequestController::class,
+        'storeAsAgency',
+    ]);
+
+    Route::post('/agency-worker-requests/{agencyWorkerRequest}/accept', [
+        AgencyWorkerRequestController::class,
+        'accept',
+    ]);
+
+    Route::post('/agency-worker-requests/{agencyWorkerRequest}/decline', [
+        AgencyWorkerRequestController::class,
+        'decline',
+    ]);
+
+    Route::post('/agency-worker-requests/{agencyWorkerRequest}/withdraw', [
+        AgencyWorkerRequestController::class,
+        'withdraw',
     ]);
 
     /*
