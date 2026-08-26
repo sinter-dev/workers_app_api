@@ -162,6 +162,9 @@ jobs:
             echo "Running database migrations..."
             docker exec workers_app_api php artisan migrate --force
 
+            echo "Seeding reference data (service categories)..."
+            docker exec workers_app_api php artisan db:seed --class=ServiceCategorySeeder --force
+
             echo "Caching production configuration..."
             docker exec workers_app_api php artisan config:cache
 
