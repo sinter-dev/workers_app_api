@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\AgencyProfile;
 use App\Models\CompanyProfile;
 use App\Models\HomeownerProfile;
 use App\Models\User;
@@ -80,15 +81,17 @@ class AuthController extends Controller
                     CompanyProfile::query()->create([
                         'user_id' => $user->id,
                     ]);
+                } elseif ($user->role === 'agency') {
+                    AgencyProfile::query()->create([
+                        'user_id' => $user->id,
+                    ]);
                 } elseif ($user->role === 'homeowner') {
                     HomeownerProfile::query()->create([
                         'user_id' => $user->id,
                     ]);
                 }
-                // Note: 'agency' is not yet a registerable role (see
-                // RegisterRequest) — agency_profiles doesn't exist
-                // until this platform's Phase 3. 'admin' accounts
-                // are never created through public registration.
+                // Note: 'admin' accounts are never created
+                // through public registration.
 
                 $token = $user
                     ->createToken('worker_app')

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\JobCancellationController;
 use App\Http\Controllers\Api\HomeownerInvitationController;
 use App\Http\Controllers\Api\HomeownerProfileController;
 use App\Http\Controllers\Api\CompanyProfileController;
+use App\Http\Controllers\Api\AgencyProfileController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminWorkerVerificationController;
 use App\Http\Controllers\Api\AdminCompanyVerificationController;
+use App\Http\Controllers\Api\AdminAgencyVerificationController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AccountControlController;
 use App\Http\Controllers\Api\AccountAppealController;
@@ -454,6 +456,27 @@ Route::prefix('hiring')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Agency Profile
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/agency/profile', [
+        AgencyProfileController::class,
+        'show',
+    ]);
+
+    Route::post('/agency/profile', [
+        AgencyProfileController::class,
+        'store',
+    ]);
+
+    Route::post('/agency/profile/resubmit-verification', [
+        AgencyProfileController::class,
+        'resubmitVerification',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
     | Modular Homeowner Profile Management
     |--------------------------------------------------------------------------
     */
@@ -739,6 +762,26 @@ Route::prefix('admin')
         Route::post(
             '/company-verifications/{companyProfile}/reject',
             [AdminCompanyVerificationController::class, 'reject']
+        );
+
+        Route::get(
+            '/agency-verifications',
+            [AdminAgencyVerificationController::class, 'index']
+        );
+
+        Route::get(
+            '/agency-verifications/{agencyProfile}',
+            [AdminAgencyVerificationController::class, 'show']
+        );
+
+        Route::post(
+            '/agency-verifications/{agencyProfile}/approve',
+            [AdminAgencyVerificationController::class, 'approve']
+        );
+
+        Route::post(
+            '/agency-verifications/{agencyProfile}/reject',
+            [AdminAgencyVerificationController::class, 'reject']
         );
 
         Route::get('/users', [AdminUserController::class, 'index']);

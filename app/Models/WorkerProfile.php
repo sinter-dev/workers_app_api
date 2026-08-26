@@ -12,6 +12,7 @@ class WorkerProfile extends Model
     protected $fillable = [
 
         'user_id',
+        'agency_id',
 
         // Personal Information
         'age',
@@ -81,6 +82,15 @@ class WorkerProfile extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The agency managing this worker, if any. Null means
+     * the worker is independent.
+     */
+    public function agency()
+    {
+        return $this->belongsTo(User::class, 'agency_id');
     }
 
     /**

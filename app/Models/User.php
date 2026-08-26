@@ -129,6 +129,29 @@ public function receivedHiringRequests(): HasMany
         );
     }
 
+    /**
+     * Agency profile belonging to this user.
+     */
+    public function agencyProfile()
+    {
+        return $this->hasOne(
+            AgencyProfile::class,
+            'user_id'
+        );
+    }
+
+    /**
+     * Workers managed by this agency (only meaningful when
+     * role === 'agency').
+     */
+    public function managedWorkers()
+    {
+        return $this->hasMany(
+            WorkerProfile::class,
+            'agency_id'
+        );
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Jobs

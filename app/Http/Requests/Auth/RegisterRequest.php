@@ -48,7 +48,7 @@ class RegisterRequest extends FormRequest
 
             'role' => [
                 'required',
-                'in:worker,homeowner,company'
+                'in:worker,homeowner,company,agency'
             ],
 
             'location' => [
@@ -80,7 +80,7 @@ class RegisterRequest extends FormRequest
             'password.min' => 'Password must be at least 8 characters.',
 
             'role.required' => 'Select your account type.',
-            'role.in' => 'Role must be worker, homeowner, or company.',
+            'role.in' => 'Role must be worker, homeowner, company, or agency.',
         ];
     }
 }
