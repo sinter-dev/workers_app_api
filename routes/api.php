@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminWorkerVerificationController;
+use App\Http\Controllers\Api\AdminCompanyVerificationController;
 use App\Http\Controllers\Api\AdminUserController;
 use App\Http\Controllers\Api\AccountControlController;
 use App\Http\Controllers\Api\AccountAppealController;
@@ -446,6 +447,11 @@ Route::prefix('hiring')->group(function () {
         'store',
     ]);
 
+    Route::post('/company/profile/resubmit-verification', [
+        CompanyProfileController::class,
+        'resubmitVerification',
+    ]);
+
     /*
     |--------------------------------------------------------------------------
     | Modular Homeowner Profile Management
@@ -713,6 +719,26 @@ Route::prefix('admin')
         Route::post(
             '/worker-verifications/{workerProfile}/reject',
             [AdminWorkerVerificationController::class, 'reject']
+        );
+
+        Route::get(
+            '/company-verifications',
+            [AdminCompanyVerificationController::class, 'index']
+        );
+
+        Route::get(
+            '/company-verifications/{companyProfile}',
+            [AdminCompanyVerificationController::class, 'show']
+        );
+
+        Route::post(
+            '/company-verifications/{companyProfile}/approve',
+            [AdminCompanyVerificationController::class, 'approve']
+        );
+
+        Route::post(
+            '/company-verifications/{companyProfile}/reject',
+            [AdminCompanyVerificationController::class, 'reject']
         );
 
         Route::get('/users', [AdminUserController::class, 'index']);

@@ -22,12 +22,19 @@ class CompanyProfile extends Model
         'latitude',
         'longitude',
         'profile_completed',
+        'verification_status',
+        'verification_rejection_reason',
+        'verification_submitted_at',
+        'verification_reviewed_at',
+        'verification_reviewed_by',
     ];
 
     protected $casts = [
         'profile_completed' => 'boolean',
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'verification_submitted_at' => 'datetime',
+        'verification_reviewed_at' => 'datetime',
     ];
 
     /**

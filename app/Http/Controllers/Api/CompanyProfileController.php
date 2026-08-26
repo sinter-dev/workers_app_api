@@ -241,6 +241,8 @@ class CompanyProfileController extends Controller
                         'user_id' => $user->id,
                     ]);
 
+                $isNewProfile = !$profile->exists;
+
                 $logoPath = $profile->logo;
 
                 if ($request->hasFile('logo')) {
@@ -274,6 +276,13 @@ class CompanyProfileController extends Controller
                     'longitude' => $validated['longitude'] ?? null,
                     'profile_completed' => true,
                 ]);
+
+                if ($isNewProfile) {
+                    $profile->fill([
+                        'verification_status' => 'pending',
+                        'verification_submitted_at' => now(),
+                    ]);
+                }
 
                 $profile->save();
 
@@ -310,5 +319,73 @@ class CompanyProfileController extends Controller
                 'message' => 'Unable to save the company profile.',
             ], 500);
         }
+    }
+
+    /**
+     * Resubmit a rejected company profile for administrator verification.
+     */
+    #[OA\Post(
+        path: '/api/company/profile/resubmit-verification',
+        tags: ['Company Profile'],
+        summary: 'Resubmit a rejected company profile for verification',
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Resubmitted',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'profile', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 403, description: 'Only company accounts can resubmit verification'),
+            new OA\Response(response: 422, description: 'Profile incomplete, or not currently rejected'),
+        ]
+    )]
+    public function resubmitVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user === null || $user->role !== 'company') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only company accounts can resubmit verification.',
+            ], 403);
+        }
+
+        $profile = CompanyProfile::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($profile === null || !$profile->profile_completed) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Complete your company profile before submitting for verification.',
+            ], 422);
+        }
+
+        if ($profile->verification_status !== 'rejected') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only rejected profiles can be resubmitted.',
+            ], 422);
+        }
+
+        $profile->forceFill([
+            'verification_status' => 'pending',
+            'verification_rejection_reason' => null,
+            'verification_submitted_at' => now(),
+            'verification_reviewed_at' => null,
+            'verification_reviewed_by' => null,
+        ])->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Your company profile has been resubmitted for verification.',
+            'profile' => $profile->fresh(),
+        ]);
     }
 }
