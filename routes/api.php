@@ -12,6 +12,10 @@ use App\Http\Controllers\Api\CompanyProfileController;
 use App\Http\Controllers\Api\AgencyProfileController;
 use App\Http\Controllers\Api\AgencyManagedWorkerController;
 use App\Http\Controllers\Api\AgencyWorkerRequestController;
+use App\Http\Controllers\Api\CompanyMarketplaceController;
+use App\Http\Controllers\Api\CompanyPublicProfileController;
+use App\Http\Controllers\Api\AgencyMarketplaceController;
+use App\Http\Controllers\Api\AgencyPublicProfileController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -282,6 +286,38 @@ Route::prefix('hiring')->group(function () {
 
     Route::get('/workers/{worker}/profile', [
         WorkerPublicProfileController::class,
+        'show',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Company Marketplace
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/companies', [
+        CompanyMarketplaceController::class,
+        'index',
+    ]);
+
+    Route::get('/companies/{company}/profile', [
+        CompanyPublicProfileController::class,
+        'show',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Agency Marketplace
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/agencies', [
+        AgencyMarketplaceController::class,
+        'index',
+    ]);
+
+    Route::get('/agencies/{agency}/profile', [
+        AgencyPublicProfileController::class,
         'show',
     ]);
 
