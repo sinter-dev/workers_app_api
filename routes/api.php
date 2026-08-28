@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminMarketplaceCategoryController;
+use App\Http\Controllers\Api\MarketplaceCategoryController;
 use App\Http\Controllers\Api\AdminServiceCategoryController;
 use App\Http\Controllers\Api\AdminWorkerVerificationController;
 use App\Http\Controllers\Api\AdminCompanyVerificationController;
@@ -90,6 +91,11 @@ Route::get('/media/{path}', [
 Route::get('/guest/service-categories', [
     GuestWorkerController::class,
     'categories',
+]);
+
+Route::get('/marketplace/categories', [
+    MarketplaceCategoryController::class,
+    'index',
 ]);
 
 Route::get('/guest/workers', [
