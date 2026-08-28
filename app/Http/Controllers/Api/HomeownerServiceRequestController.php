@@ -195,7 +195,7 @@ class HomeownerServiceRequestController extends Controller
 
         return response()->json([
             'success' => true,
-            'service_request' => $serviceRequest->load([
+            'service_request' => $serviceRequest->loadCount('quotes')->load([
                 'serviceCategory:id,name,slug,icon',
                 'provider:id,full_name,phone,profile_photo',
             ]),

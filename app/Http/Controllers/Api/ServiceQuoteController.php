@@ -8,6 +8,7 @@ use App\Models\ServiceRequest;
 use App\Services\AppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'Service Quotes', description: 'Submitting, viewing, and withdrawing quotes on a service request')]
@@ -263,6 +264,177 @@ class ServiceQuoteController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Quote withdrawn.',
+        ]);
+    }
+
+    /**
+     * Homeowner: accept one quote, booking that provider and
+     * auto-declining every other pending quote on this request.
+     */
+    #[OA\Patch(
+        path: '/api/homeowner/service-quotes/{quote}/accept',
+        tags: ['Service Quotes'],
+        summary: 'Accept a quote, booking the provider',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'quote', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Provider booked, other quotes auto-declined'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this request'),
+            new OA\Response(response: 422, description: 'Request is not open, or quote is not pending'),
+        ]
+    )]
+    public function accept(Request $request, ServiceQuote $quote): JsonResponse
+    {
+        $serviceRequest = $quote->serviceRequest;
+
+        $user = $request->user();
+
+        if ($user === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if ($serviceRequest->homeowner_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        if ($serviceRequest->status !== 'open') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This request is no longer open.',
+            ], 422);
+        }
+
+        if ($quote->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This quote is no longer pending.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($serviceRequest, $quote) {
+            $quote->forceFill([
+                'status' => 'accepted',
+                'responded_at' => now(),
+            ])->save();
+
+            $serviceRequest->forceFill([
+                'status' => 'booked',
+                'provider_id' => $quote->provider_id,
+                'booked_at' => now(),
+            ])->save();
+
+            ServiceQuote::query()
+                ->where('service_request_id', $serviceRequest->id)
+                ->where('id', '!=', $quote->id)
+                ->where('status', 'pending')
+                ->get()
+                ->each(function (ServiceQuote $otherQuote) {
+                    $otherQuote->forceFill([
+                        'status' => 'declined',
+                        'responded_at' => now(),
+                    ])->save();
+
+                    AppNotificationService::send(
+                        $otherQuote->provider_id,
+                        'service_quote_declined',
+                        'service_requests',
+                        'Quote not selected',
+                        'The homeowner chose another provider for this request.',
+                        'service_request',
+                        $otherQuote->service_request_id
+                    );
+                });
+        });
+
+        AppNotificationService::send(
+            $quote->provider_id,
+            'service_quote_accepted',
+            'service_requests',
+            'Quote accepted',
+            'Your quote for "' . $serviceRequest->title . '" was accepted. You are now booked.',
+            'service_request',
+            $serviceRequest->id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Provider booked.',
+            'service_request' => $serviceRequest->fresh(),
+        ]);
+    }
+
+    /**
+     * Homeowner: decline a single quote without accepting another.
+     */
+    #[OA\Patch(
+        path: '/api/homeowner/service-quotes/{quote}/decline',
+        tags: ['Service Quotes'],
+        summary: 'Decline a single quote',
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(name: 'quote', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Quote declined'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not the owner of this request'),
+            new OA\Response(response: 422, description: 'Quote is not pending'),
+        ]
+    )]
+    public function decline(Request $request, ServiceQuote $quote): JsonResponse
+    {
+        $serviceRequest = $quote->serviceRequest;
+
+        $user = $request->user();
+
+        if ($user === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if ($serviceRequest->homeowner_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        if ($quote->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This quote is no longer pending.',
+            ], 422);
+        }
+
+        $quote->forceFill([
+            'status' => 'declined',
+            'responded_at' => now(),
+        ])->save();
+
+        AppNotificationService::send(
+            $quote->provider_id,
+            'service_quote_declined',
+            'service_requests',
+            'Quote declined',
+            'Your quote for "' . $serviceRequest->title . '" was declined.',
+            'service_request',
+            $serviceRequest->id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quote declined.',
         ]);
     }
 }
