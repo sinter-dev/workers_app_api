@@ -19,6 +19,9 @@ use App\Http\Controllers\Api\AgencyPublicProfileController;
 use App\Http\Controllers\Api\HomeownerServiceRequestController;
 use App\Http\Controllers\Api\ProviderServiceRequestController;
 use App\Http\Controllers\Api\ServiceQuoteController;
+use App\Http\Controllers\Api\ProviderServiceBookingController;
+use App\Http\Controllers\Api\HomeownerServiceCompletionController;
+use App\Http\Controllers\Api\ServiceRequestCancellationController;
 use App\Http\Controllers\Api\HomeownerProfileSectionController;
 use App\Http\Controllers\Api\HomeownerReviewController;
 use App\Http\Controllers\Api\MediaController;
@@ -41,6 +44,8 @@ use App\Http\Controllers\Api\WorkWantedPostController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AdminMarketplaceCategoryController;
+use App\Http\Controllers\Api\AdminServiceCategoryController;
 use App\Http\Controllers\Api\AdminWorkerVerificationController;
 use App\Http\Controllers\Api\AdminCompanyVerificationController;
 use App\Http\Controllers\Api\AdminAgencyVerificationController;
@@ -314,6 +319,52 @@ Route::prefix('hiring')->group(function () {
     Route::patch('/provider/service-quotes/{quote}/withdraw', [
         ServiceQuoteController::class,
         'withdraw',
+    ]);
+
+    Route::post('/homeowner/service-requests/{serviceRequest}/quotes/{quote}/accept', [
+        ServiceQuoteController::class,
+        'accept',
+    ]);
+
+    Route::post('/homeowner/service-requests/{serviceRequest}/quotes/{quote}/decline', [
+        ServiceQuoteController::class,
+        'decline',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Service Booking Lifecycle
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/provider/service-bookings/{serviceRequest}', [
+        ProviderServiceBookingController::class,
+        'show',
+    ]);
+
+    Route::patch('/provider/service-bookings/{serviceRequest}/start', [
+        ProviderServiceBookingController::class,
+        'start',
+    ]);
+
+    Route::patch('/provider/service-bookings/{serviceRequest}/complete', [
+        ProviderServiceBookingController::class,
+        'complete',
+    ]);
+
+    Route::patch('/homeowner/service-requests/{serviceRequest}/confirm-completion', [
+        HomeownerServiceCompletionController::class,
+        'confirm',
+    ]);
+
+    Route::patch('/homeowner/service-requests/{serviceRequest}/cancel', [
+        ServiceRequestCancellationController::class,
+        'homeownerCancel',
+    ]);
+
+    Route::patch('/provider/service-bookings/{serviceRequest}/cancel', [
+        ServiceRequestCancellationController::class,
+        'providerCancel',
     ]);
 
     /*
@@ -888,6 +939,18 @@ Route::prefix('admin')
             '/dashboard',
             [AdminDashboardController::class, 'index']
         );
+
+        Route::get('/marketplace-categories', [AdminMarketplaceCategoryController::class, 'index']);
+        Route::post('/marketplace-categories', [AdminMarketplaceCategoryController::class, 'store']);
+        Route::get('/marketplace-categories/{category}', [AdminMarketplaceCategoryController::class, 'show']);
+        Route::post('/marketplace-categories/{category}', [AdminMarketplaceCategoryController::class, 'update']);
+        Route::delete('/marketplace-categories/{category}', [AdminMarketplaceCategoryController::class, 'destroy']);
+
+        Route::get('/service-categories', [AdminServiceCategoryController::class, 'index']);
+        Route::post('/service-categories', [AdminServiceCategoryController::class, 'store']);
+        Route::get('/service-categories/{category}', [AdminServiceCategoryController::class, 'show']);
+        Route::post('/service-categories/{category}', [AdminServiceCategoryController::class, 'update']);
+        Route::delete('/service-categories/{category}', [AdminServiceCategoryController::class, 'destroy']);
 
         Route::get(
             '/worker-verifications',
